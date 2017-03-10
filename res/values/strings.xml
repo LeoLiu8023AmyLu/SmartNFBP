@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Smart NFBP</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hallo Welt! Ich Liebe dich</string>
+    <string name="LEO">Eidit By Leo.Liu and Amy.Lu</string>
+    <string name="LEO1">站台名称</string>
+    <string name="LEO2">路径</string>
+	<string name="send">发送</string>
+	<string name="Connect">连接</string>
+	<string name="save">保存</string>
+	<string name="clear">清空</string>
+	<string name="quit">退出</string>
+	<string name="ON">ON</string>
+	<string name="ONR">R</string>
+	<string name="ONW">W</string>
+	<string name="OND">D-D</string>
+	<string name="OFF">OFF</string>
+	<string name="Speech">语音播放</string>
+	<string name="Record">语音录制</string>
+	<string name="L4D">查找设备</string>
+	<string name="cancel">取消</string>
+	<string name="WSFN">请输入文件名称</string>
+	<string name="UMD">没有找到设备</string>
+	
+	
+</resources>
