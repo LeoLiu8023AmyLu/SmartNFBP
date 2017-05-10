@@ -1,0 +1,584 @@
+/** include library **/
+#include <nfc.h>
+#include <Wire.h>
+#include <Arduino.h>
+///////////////////////////////////////////////////////////////////////////
+//  PN532 妯″潡瀹氫箟
+// SDA  ----> A4
+// SCL  ----> A5
+#define LEDPin 13		//LED 鐨勫紩鑴�
+#define Buzzer 7		//铚傞福鍣ㄥ紩鑴�
+// 瓒呭０娉㈡ā鍧楀紩鑴氬畾涔�
+#define TrigPin 2		//鍙戦�佹尝
+#define EchoPin 3		//鍥炴尝
+//////////////////////////////////////////////////////////////////////////
+#define KEY_yes 6		//纭寤烘寜閽紩鑴�
+#define KEY_no 5		//鍙栨秷閿寜閽紩鑴�
+#define KEY_help 4		//甯姪閿寜閽紩鑴�
+/////////////////////////////////////////////////////////////////////////
+/*
+纭欢鐩墠闇�瑕佸崌绾т互涓嬫柟闈細
+ 1.璇诲崱鑳藉姏
+ 2.鍐欏叆鑳藉姏
+ 3.铚傞福鍣ㄥ搷搴�
+ 4.鐪佺數
+
+ 鐩墠纭欢鑳藉姏锛�
+ 閫氳繃杈撳叆鎺у埗鍛戒护瀛楁潵妫�鏌ワ細
+ -->	ON!	寮�鍚澶�
+ -->	OFF	鍏抽棴璁惧
+ -->	ONR	璇诲崱
+ -->	ONW	鍐欏崱
+ -->	OND	鎺㈡祴璺濈
+
+ 鍙﹀鏈変笁涓寜閽�
+ 鍒嗗埆鏄細Y纭	N鍙栨秷	H甯姪
+
+ 铚傞福鍣ㄥ仛鎴愪簡Beep 涔熷氨鏄彧鏈夎妭濂忕殑鍖哄垎锛屾病鏈夐煶璋冪殑鍖哄垎
+ 鍦ㄤ箣鍚庣殑寮�鍙戜腑鍙互鎹竴涓厓浠讹紝鏉ュ畬鎴愭洿寮哄ぇ鐨勫姛鑳姐��
+
+ */
+//////////////////////////////////////////////////////////////////////////
+
+
+
+// 甯搁噺瀹氫箟
+unsigned char KEY_NUM = 0;	//鎸夐敭鍒ゆ柇
+//bool Flag_KEY_Set = 0;
+//unsigned char KEY2_Count = 0;
+
+// 娴嬮噺璺濈
+float Value_cm;
+
+char Uart_Buffer[20];	//鎺ュ彈鐢ㄧ殑瀛楃涓茬粍
+//char Uart_Buffer1[20];
+char Uart_Count = 0;	//瀛楃娓告爣锛屾潵纭畾瀛楃瀛樻斁浣嶇疆
+//char Uart_Count1 = 0;
+char temp = 0;
+char temp1 = 0;
+String RFID_String_new = "";
+String RFID_String_old = "";
+/** define a nfc class */
+NFC_Module nfc;	////鍒濆鍖�
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////// 鍒濆鍖栫▼搴� ///////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void setup(void)
+{
+  Serial.begin(9600);
+  pinMode(TrigPin, OUTPUT);		// 瓒呭０娉㈣緭鍑�
+  pinMode(EchoPin, INPUT);		// 瓒呭０娉㈠洖娉㈣緭鍏�
+  pinMode(LEDPin, OUTPUT);		// LED鐏� 杈撳嚭
+  pinMode(Buzzer, OUTPUT);		//璁剧疆杈撳嚭寮曡剼
+  pinMode(KEY_yes, INPUT_PULLUP);       //寮�鍏冲紩鑴氳緭鍏�
+  pinMode(KEY_no, INPUT_PULLUP);	       //寮�鍏冲紩鑴氳緭鍏�
+  pinMode(KEY_help, INPUT_PULLUP);	//寮�鍏冲紩鑴氳緭鍏�
+
+  //NFC 鍒濆鍖�
+  nfc.begin();					//鍒濆鍖� NFC 鏉垮潡
+  //鎵撳嵃绯荤粺
+  Serial.println("Smart_NFBP System Start!");
+  Serial.println("This one is edit by Anshare Tech");
+  Serial.println("Firmware ver. 2.0.0");
+  Serial.println("Leo.Liu Work");
+  //绯荤粺鑷
+  uint32_t versiondata = nfc.get_version();		//鍒ゆ柇纭欢鐗堟湰
+  if (! versiondata) {							//濡傛灉鐗堟湰杩斿洖0锛屽垯姝诲惊鐜�
+    Serial.print("Didn't find PN53x board");	//娌℃湁鍙戠幇纭欢
+    while (1);									// 鍋滄杩愯
+  }
+
+  // Got ok data, print it out!
+  // 鎵惧埌纭欢骞惰鍙栫増鏈彿锛屾墦鍗板嚭鏉�
+  Serial.print("Found chip PN5");
+  Serial.println((versiondata >> 24) & 0xFF, HEX);	//纭欢鐗堟湰鍙�
+  Serial.print("Firmware ver. ");
+  Serial.print((versiondata >> 16) & 0xFF, DEC);	//纭欢妗嗘灦鍙�
+  Serial.print('.');
+  Serial.println((versiondata >> 8) & 0xFF, DEC);	//纭欢妗嗘灦鍙�
+
+  /** Set normal mode, and disable SAM */
+  nfc.SAMConfiguration();		//璁剧疆妯″紡锛燂紒锛�
+
+  //Serial.println("Please Input 'ON!' to start System.");
+  //Serial.println("Please Input 'OFF!' to close System.");
+  digitalWrite(LEDPin, HIGH);	//鎵撳紑 LED
+  // 铚傞福鍣ㄦ彁绀�
+  digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+  delay(40);					//寤舵椂
+  digitalWrite(Buzzer, LOW);
+  delay(80);
+  digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+  delay(80);					//寤舵椂
+  digitalWrite(Buzzer, LOW);
+  delay(50);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////// 涓诲惊鐜▼搴� ///////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+void loop(void)
+{
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  // 鍘熷绋嬪簭鎺у埗浠ｇ爜
+  unsigned char i;
+  while (Serial.available() > 0)
+  {
+    temp = Serial.read();
+    if (temp == 'O')
+    {
+      Uart_Count = 0;
+    }
+
+    Uart_Buffer[Uart_Count++] = temp;
+    if (Uart_Count == 19)
+    {
+      Uart_Count = 0;
+    }
+
+    //寮�鏈�
+    if (Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'N' && Uart_Buffer[2] == '!')
+    {
+      digitalWrite(LEDPin, HIGH);	//鎵撳紑缁х數鍣�
+      Serial.println("System LEDPin ON Complete!");
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(100);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      Serial.println("Input 'ONR' =Read Cards!");
+      Serial.println("Input 'ONW' =Write Cards!");
+      Serial.println("Input 'OND' =Detect Distence!");
+      for (i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+
+    }
+
+    //鍏抽棴
+    if (Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'F' && Uart_Buffer[2] == 'F' && Uart_Buffer[3] == '!')
+    {
+      digitalWrite(LEDPin, LOW);		//鍏抽棴缁х數鍣�
+      Serial.println("LEDPin OFF Complete!");
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(100);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(100);
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(50);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(50);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+
+      for (i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+
+    // 璇诲彇
+    if (Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'R') //read card
+    {
+      ///////////////////////////////////////////////////////////////////////////
+      //Serial.println("System_Read_Cards!");
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(200);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      u8 buf[32], sta;
+
+      /** Polling the mifar card, buf[0] is the length of the UID */
+      sta = nfc.InListPassiveTarget(buf);
+
+      /** check state and UID length */
+      if (sta && buf[0] == 4) {
+        /** the card may be Mifare Classic card, try to read the block */
+        //Serial.print("UUID_length:");
+        //Serial.print(buf[0], DEC);
+        //Serial.println();
+        //Serial.print("UUID:");
+        //nfc.puthex(buf+1, buf[0]);
+        //Serial.println();
+        /** factory default KeyA: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF */
+        u8 key[6] = {
+          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+        };
+        u8 blocknum = 4;
+        /** Authentication blok 4 */
+        sta = nfc.MifareAuthentication(0, blocknum, buf + 1, buf[0], key);
+        if (sta) {
+          /** save read block data */
+          u8 block[16];
+          //Serial.println("Authentication_success.");
+
+          // uncomment following lines for writing data to blok 4
+          /*
+           strcpy((char*)block, "Elechoues - NFC");
+           sta = nfc.MifareWriteBlock(blocknum, block);
+           if(sta){
+           Serial.println("Write block successfully:");
+           }
+           */
+
+          /** read block 4 */
+          sta = nfc.MifareReadBlock(blocknum, block);
+          if (sta) {
+            //Serial.println("Read_block_0_successfully:");
+
+            nfc.puthex(block, 1);//鎵撳嵃IC鍗￠噷绗竴涓尯鍩熼噷闈� 1涓瓧绗�
+            Serial.println();
+          }
+
+          /** read block 5 */
+          sta = nfc.MifareReadBlock(blocknum + 1, block);
+          if (sta) {
+            //Serial.println("Read_block_1_successfully:");
+
+            //nfc.puthex(block, 16);
+            //Serial.println();
+          }
+
+          /** read block 6 */
+          sta = nfc.MifareReadBlock(blocknum + 2, block);
+          if (sta) {
+            //Serial.println("Read_block_2_successfully:");
+
+            //nfc.puthex(block, 16);
+
+            //Serial.println();
+          }
+
+          /** read block 7 */
+          sta = nfc.MifareReadBlock(blocknum + 3, block);
+          if (sta) {
+            //Serial.println("Read_block_3_successfully:");
+
+            //nfc.puthex(block, 16);
+            //Serial.println();
+          }
+        }
+      }
+      /////////////////////////////////////////////////////
+      for (i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+
+    // 鍐欏叆
+    if (Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'W') //write card
+    {
+      Serial.println("System Write Cards!");
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(200);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+
+      u8 buf[32], sta;
+
+
+      /** Polling the mifar card, buf[0] is the length of the UID */
+      sta = nfc.InListPassiveTarget(buf);
+
+      /** check state and UID length */
+      if (sta && buf[0] == 4) {
+        /** the card may be Mifare Classic card, try to read the block */
+        Serial.print("UUID length:");
+        Serial.print(buf[0], DEC);
+        Serial.println();
+        Serial.print("UUID:");
+        nfc.puthex(buf + 1, buf[0]);
+        Serial.println();
+        /** factory default KeyA: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF */
+        u8 key[6] = {
+          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+        };
+        u8 blocknum = 4;
+        /** Authentication blok 4 */
+        sta = nfc.MifareAuthentication(0, blocknum, buf + 1, buf[0], key);
+        if (sta) {
+          /** save read block data */
+          u8 block[16];
+          Serial.println("Authentication success.");
+
+          ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+          //鍐欏叆鍗＄墖
+          String Word = "";
+          Word = "H#NJ0205#LeoLiu$";
+          strcpy((char*)block, "H#NJ0205#LeoLiu$"); //Write some thing to cards  鍦ㄨ繖閲屽啓鍏ヤ竴浜涙枃瀛�
+          Serial.println("Write " + Word + " to block.... ");
+          sta = nfc.MifareWriteBlock(blocknum, block);
+          if (sta) {
+            Serial.println("Write block successfully ^-^");
+            digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+            delay(50);					//寤舵椂
+            digitalWrite(Buzzer, LOW);
+            delay(50);
+            digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+            delay(50);					//寤舵椂
+            digitalWrite(Buzzer, LOW);
+          }
+        }
+      }
+      for (i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+
+    //璺濈鎺㈡祴
+    if (Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'D') //Detect distence
+    {
+      Serial.println("System Report Distance!");
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(100);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(200);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(200);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(50);
+      ///////////////////////////////////////////////////////////////////////////////////////////////////
+      digitalWrite(TrigPin, LOW); //浣庨珮浣庣數骞冲彂涓�涓煭鏃堕棿鑴夊啿鍘籘rigPin
+      delayMicroseconds(2);
+      digitalWrite(TrigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(TrigPin, LOW);
+      Value_cm = float( pulseIn(EchoPin, HIGH) * 17 ) / 1000; //灏嗗洖娉㈡椂闂存崲绠楁垚cm
+      //璇诲彇涓�涓紩鑴氱殑鑴夊啿锛圚IGH鎴朙OW锛夈�備緥濡傦紝濡傛灉value鏄疕IGH锛宲ulseIn()浼氱瓑寰呭紩鑴氬彉涓篐IGH锛屽紑濮嬭鏃讹紝鍐嶇瓑寰呭紩鑴氬彉涓篖OW骞跺仠姝㈣鏃躲��
+      //杩斿洖鑴夊啿鐨勯暱搴︼紝鍗曚綅寰銆傚鏋滃湪鎸囧畾鐨勬椂闂村唴鏃犺剦鍐插嚱鏁拌繑鍥炪��
+      //姝ゅ嚱鏁扮殑璁℃椂鍔熻兘鐢辩粡楠屽喅瀹氾紝闀挎椂闂寸殑鑴夊啿璁℃椂鍙兘浼氬嚭閿欍�傝鏃惰寖鍥翠粠10寰鑷�3鍒嗛挓銆傦紙1绉�=1000姣=1000000寰锛�
+      //鎺ユ敹鍒扮殑楂樼數骞崇殑鏃堕棿锛坲s锛�* 340m/s / 2 = 鎺ユ敹鍒伴珮鐢靛钩鐨勬椂闂达紙us锛� * 17000 cm / 1000000 us = 鎺ユ敹鍒伴珮鐢靛钩鐨勬椂闂� * 17 / 1000  (cm)
+      Serial.println("Distence is :");
+      Serial.print(Value_cm);
+      Serial.println("cm");
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      delay(500);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(500);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+
+      for (i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+
+    }
+  }
+  /////////////////////////////////////////////////////////////////////////////////////
+  ///////  涓诲惊鐜▼搴�  ////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////
+
+  //璇诲彇鍗＄墖
+  readcards();            // Read Card
+  //娴嬭瘯璺濈
+  distance();            // test  distance
+  //妫�娴嬪紑鍏崇姸鎬�
+  Scan_KEY();
+  // 鏍规嵁寮�鍏冲彂閫佸瓧绗�
+  switch ( KEY_NUM )
+  {
+    case 1:			//鎸夐敭Yes鎵ц绋嬪簭
+      KEY_NUM = 0;		//娓呯┖鎸夐敭鏍囧織
+      Serial.println("Y!");
+      break;
+    case 2:			//鎸夐敭No鎵ц绋嬪簭
+      KEY_NUM = 0;		//娓呯┖鎸夐敭鏍囧織
+      Serial.println("N!");
+      break;
+    case 3:			//鎸夐敭Help鎵ц绋嬪簭
+      KEY_NUM = 0;		//娓呯┖鎸夐敭鏍囧織
+      Serial.println("H!");
+      break;
+    default :
+      break;
+  }
+
+  delay(50);
+  /////////////////////////////////////////////////////////////////////////////
+}
+////////////////////////////////// END Loop  //////////////////////////////////////
+
+// 璇诲彇鍗＄墖淇℃伅
+void readcards()
+{
+  ///////////////////////////////////////////////////////////////////////////
+  //Serial.println("System_Read_Cards!");
+  u8 buf[32], sta;//8浣� 32鏁扮粍
+
+  /** Polling the mifar card, buf[0] is the length of the UID */
+  sta = nfc.InListPassiveTarget(buf);	//鍒ゆ柇鍗＄墖鏄惁瀛樺湪
+
+  /** check state and UID length */
+  if (sta && buf[0] == 4) {
+    /** the card may be Mifare Classic card, try to read the block */
+    //Serial.print("UUID_length:");
+    //Serial.print(buf[0], DEC);
+    //Serial.println();
+    //Serial.print("UUID:");
+    //nfc.puthex(buf+1, buf[0]);
+    //Serial.println();
+    /** factory default KeyA: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF */
+    u8 key[6] = {
+      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    };
+    u8 blocknum = 4;
+    /** Authentication blok 4 */
+    sta = nfc.MifareAuthentication(0, blocknum, buf + 1, buf[0], key);
+    if (sta) {
+      /** save read block data */
+      u8 block[16];	//寮�濮嬪瓨鍌ㄦ敹鍒扮殑鍖哄煙
+      //Serial.println("Authentication_success.");
+
+      // uncomment following lines for writing data to blok 4
+      /*
+       strcpy((char*)block, "Elechoues - NFC");
+       sta = nfc.MifareWriteBlock(blocknum, block);
+       if(sta){
+       Serial.println("Write block successfully:");
+       }
+       */
+
+      /** read block 4 */
+      sta = nfc.MifareReadBlock(blocknum, block);
+      if (sta) {
+        //Serial.println("Read_block_0_successfully:");
+
+        //nfc.puthex(block, 16);	//鎵撳嵃IC鍗￠噷绗竴涓尯鍩熼噷闈� 1涓瓧绗�
+        RFID_String_new = nfc.puthex(block, 16);	//鎵撳嵃IC鍗￠噷绗竴涓尯鍩熼噷闈� 1涓瓧绗�
+        //////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////
+        //Serial.println();		//鎹㈣
+        Serial.println(RFID_String_new);
+        if (RFID_String_new.equals(RFID_String_old))
+        {
+          // Do Nothing  浠�涔堥兘涓嶅仛
+          delay(1000);					//寤舵椂
+        }
+        else
+        {
+          Serial.println(RFID_String_new);
+          RFID_String_old = RFID_String_new;	//鎶婅�佺殑鏇挎崲鎺�
+          //////////  Beep ///////////////////
+          digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+          delay(200);					//寤舵椂
+          digitalWrite(Buzzer, LOW);
+          ////////////////////////////////////
+          Serial.println(RFID_String_new);
+        }
+      }
+
+      /** read block 5 */
+      /*
+      sta = nfc.MifareReadBlock(blocknum + 1, block);
+      if (sta) {
+        //Serial.println("Read_block_1_successfully:");
+        //nfc.puthex(block, 16);
+        //Serial.println();
+      }
+      */
+      /** read block 6 */
+      /*
+      sta = nfc.MifareReadBlock(blocknum + 2, block);
+      if (sta) {
+        //Serial.println("Read_block_2_successfully:");
+        //nfc.puthex(block, 16);
+        //Serial.println();
+      }
+      */
+      /** read block 7 */
+      /*
+      sta = nfc.MifareReadBlock(blocknum + 3, block);
+      if (sta) {
+        //Serial.println("Read_block_3_successfully:");
+        //nfc.puthex(block, 16);
+        //Serial.println();
+      }
+      */
+    }
+  }
+  /////////////////////////////////////////////////////
+}
+
+void distance()
+{
+  digitalWrite(TrigPin, LOW); //浣庨珮浣庣數骞冲彂涓�涓煭鏃堕棿鑴夊啿鍘籘rigPin
+  delayMicroseconds(2);
+  digitalWrite(TrigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TrigPin, LOW);
+  Value_cm = float( pulseIn(EchoPin, HIGH) * 17 ) / 1000; //灏嗗洖娉㈡椂闂存崲绠楁垚cm
+  //璇诲彇涓�涓紩鑴氱殑鑴夊啿锛圚IGH鎴朙OW锛夈�備緥濡傦紝濡傛灉value鏄疕IGH锛宲ulseIn()浼氱瓑寰呭紩鑴氬彉涓篐IGH锛屽紑濮嬭鏃讹紝鍐嶇瓑寰呭紩鑴氬彉涓篖OW骞跺仠姝㈣鏃躲��
+  //杩斿洖鑴夊啿鐨勯暱搴︼紝鍗曚綅寰銆傚鏋滃湪鎸囧畾鐨勬椂闂村唴鏃犺剦鍐插嚱鏁拌繑鍥炪��
+  //姝ゅ嚱鏁扮殑璁℃椂鍔熻兘鐢辩粡楠屽喅瀹氾紝闀挎椂闂寸殑鑴夊啿璁℃椂鍙兘浼氬嚭閿欍�傝鏃惰寖鍥翠粠10寰鑷�3鍒嗛挓銆傦紙1绉�=1000姣=1000000寰锛�
+  //鎺ユ敹鍒扮殑楂樼數骞崇殑鏃堕棿锛坲s锛�* 340m/s / 2 = 鎺ユ敹鍒伴珮鐢靛钩鐨勬椂闂达紙us锛� * 17000 cm / 1000000 us = 鎺ユ敹鍒伴珮鐢靛钩鐨勬椂闂� * 17 / 1000  (cm)
+  if (Value_cm < 120 && Value_cm > 10)
+  {
+    Serial.print("V!_");
+    Serial.println(Value_cm);
+    //鍐欏叆鏅鸿兘娴嬭窛鍙婃櫤鑳芥姤璀︼紝瓒婅繙棰戠巼瓒婁綆锛岃秺杩戦鐜囪秺楂樸��
+    int Time_Beep = 0;
+    int Time_T = 0;
+    Time_Beep = int(Value_cm) * 2 + 10;
+    Time_T = -0.05 * int(Value_cm) + 10.5;
+    for (int m = 0; m < Time_T; m++)
+    {
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(30);					//寤舵椂
+      digitalWrite(Buzzer, LOW);
+      delay(Time_Beep);
+      digitalWrite(Buzzer, HIGH);	//铚傞福鍣ㄥ搷
+      delay(30);
+      digitalWrite(Buzzer, LOW);
+      delay(Time_Beep);
+    }
+  }
+}
+
+
+void Scan_KEY()
+{
+  // 鎸夐敭 Yes
+  if ( digitalRead(KEY_yes) == LOW )			//鎸夐敭1鎵弿
+  {
+    delay(20);								//寤舵椂鍘绘姈
+    if ( digitalRead(KEY_yes) == LOW )
+    {
+      while (digitalRead(KEY_yes) == LOW);	//绛夊緟鏉炬墜
+      KEY_NUM = 1;
+    }
+  }
+  // 鎸夐敭 No
+  if ( digitalRead(KEY_no) == LOW )			//鎸夐敭2鎵弿
+  {
+    delay(20);								//寤舵椂鍘绘姈
+    if ( digitalRead(KEY_no) == LOW )
+    {
+      while (digitalRead(KEY_no) == LOW);	//绛夊緟鏉炬墜
+      KEY_NUM = 2;
+    }
+  }
+  // 鎸夐敭 Help
+  if ( digitalRead(KEY_help) == LOW )			//鎸夐敭2鎵弿
+  {
+    delay(20);								//寤舵椂鍘绘姈
+    if ( digitalRead(KEY_help) == LOW )
+    {
+      while (digitalRead(KEY_help) == LOW);	//绛夊緟鏉炬墜
+      KEY_NUM = 3;
+    }
+  }
+}
+
+
+

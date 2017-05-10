@@ -1,0 +1,332 @@
+/** include library */
+#include "nfc.h"
+#include <Arduino.h>
+#define Relay 13
+#define Buzzer 7
+// 超声波模块引脚定义
+#define TrigPin 2
+#define EchoPin 3
+
+// 测量距离
+float Value_cm;
+
+char Uart_Buffer[20];
+//char Uart_Buffer1[20];
+char Uart_Count = 0;
+//char Uart_Count1 = 0;
+char temp = 0;
+char temp1 = 0;
+//定义RFID 读取的字符串
+String RFID_String_new = "";
+String RFID_String_old = "";
+/** define a nfc class */
+NFC_Module nfc;
+
+void setup(void)
+{
+  Serial.begin(9600);
+  pinMode(TrigPin, OUTPUT);
+  pinMode(EchoPin, INPUT);
+  pinMode(Relay,OUTPUT);
+  pinMode(Buzzer,OUTPUT);		//设置输出引脚
+  nfc.begin();
+  Serial.println("RFID Read&Write Card System!");
+  Serial.println("Hellow!");
+
+
+  uint32_t versiondata = nfc.get_version();
+  if (! versiondata) {
+    Serial.print("Didn't find PN53x board");
+    while (1); // halt
+  }
+
+  // Got ok data, print it out!
+  Serial.print("Found chip PN5"); 
+  Serial.println((versiondata>>24) & 0xFF, HEX); 
+  Serial.print("Firmware ver. "); 
+  Serial.print((versiondata>>16) & 0xFF, DEC); 
+  Serial.print('.'); 
+  Serial.println((versiondata>>8) & 0xFF, DEC);
+
+  /** Set normal mode, and disable SAM */
+  nfc.SAMConfiguration();
+
+  Serial.println("Please Input 'ON!' to start System.");
+  Serial.println("Please Input 'OFF!' to close System.");
+  digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+  delay(50);					//延时
+  digitalWrite(Buzzer,LOW);
+  delay(50);
+  digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+  delay(50);					//延时
+  digitalWrite(Buzzer,LOW);
+  delay(50);
+}
+
+void loop(void)
+{
+  unsigned char i;
+  while(Serial.available() > 0)
+  {
+    temp = Serial.read();	
+    if(temp == 'O')
+    {
+      Uart_Count = 0;
+    }
+
+    Uart_Buffer[Uart_Count++] = temp;
+
+    if(Uart_Count == 19)
+    {
+      Uart_Count = 0;
+    }
+
+    if(Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'N' && Uart_Buffer[2] == '!')
+    {
+      digitalWrite(Relay,HIGH);					//打开继电器
+      Serial.println("System Relay ON Complete!");
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(100);					//延时
+      digitalWrite(Buzzer,LOW);
+      Serial.println("Input 'ONR' =Read Cards!");
+      Serial.println("Input 'ONW' =Write Cards!");
+      Serial.println("Input 'OND' =Detect Distence!");
+      for(i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+
+    }
+
+    if(Uart_Buffer[0] == 'O' && Uart_Buffer[1] == 'F' && Uart_Buffer[2] == 'F' && Uart_Buffer[3] == '!')
+    {
+      digitalWrite(Relay,LOW);					//关闭继电器
+      Serial.println("Relay OFF Complete!");
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(100);					//延时
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(100);
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(50);					//延时
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(50);					//延时
+      digitalWrite(Buzzer,LOW);
+
+      for(i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+
+    if(Uart_Buffer[0] == 'O'&& Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'R')  //read card
+    {
+      //Serial.println("System_Read_Cards!");
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(200);					//延时
+      digitalWrite(Buzzer,LOW);
+      u8 buf[32],sta;
+
+
+      /** Polling the mifar card, buf[0] is the length of the UID */
+      sta = nfc.InListPassiveTarget(buf);
+
+      /** check state and UID length */
+      if(sta && buf[0] == 4){
+        /** the card may be Mifare Classic card, try to read the block */
+        //Serial.print("UUID_length:");
+        //Serial.print(buf[0], DEC);
+        //Serial.println();
+        //Serial.print("UUID:");
+        //nfc.puthex(buf+1, buf[0]);
+        //Serial.println();
+        /** factory default KeyA: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF */
+        u8 key[6] = {
+          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF                                                                                                                              };
+        u8 blocknum = 4;
+        /** Authentication blok 4 */
+        sta = nfc.MifareAuthentication(0, blocknum, buf+1, buf[0], key);
+        if(sta){
+          /** save read block data */
+          u8 block[16];
+          //Serial.println("Authentication_success.");
+
+          // uncomment following lines for writing data to blok 4
+          /*      
+           strcpy((char*)block, "Elechoues - NFC");
+           sta = nfc.MifareWriteBlock(blocknum, block);
+           if(sta){
+           Serial.println("Write block successfully:");
+           }
+           */
+
+          /** read block 4 */
+          sta = nfc.MifareReadBlock(blocknum, block);
+          if(sta){
+            //Serial.println("Read_block_0_successfully:");
+             RFID_String_new = nfc.puthex(block, 16);	//读取RFID的字符串并保存在 RFID_String_new 中
+        		//////////////////////////////////////////////////////////////////////////////
+        		//////////////////////////////////////////////////////////////////////////////
+        		//Serial.println();		//保存原有程序
+        		Serial.println(RFID_String_new);// 打印收到的字符串
+        		if (RFID_String_new.equals(RFID_String_old))
+        		{
+          		// Do Nothing  
+          		delay(1000);	//等待
+          	}
+          	else
+          	{
+          		Serial.println(RFID_String_new);
+          		RFID_String_old = RFID_String_new;	//把字符串保存给上一个字符串
+          		//////////  Beep ///////////////////
+          		digitalWrite(Buzzer, HIGH);	//
+          		delay(200);				//延迟
+          		digitalWrite(Buzzer, LOW);
+          		////////////////////////////////////
+          		Serial.println(RFID_String_new);
+          	}
+
+            //nfc.puthex(block, 4);//打印IC卡里第一个区域里面 4个字符
+            //Serial.println();
+          }
+
+
+          /* read block 5  保留原程序 
+          sta = nfc.MifareReadBlock(blocknum+1, block);
+          if(sta){
+            //Serial.println("Read_block_1_successfully:");
+
+            //nfc.puthex(block, 16);
+            //Serial.println();
+          }
+
+          // read block 6 
+          sta = nfc.MifareReadBlock(blocknum+2, block);
+          if(sta){
+            //Serial.println("Read_block_2_successfully:");
+
+            //nfc.puthex(block, 16);
+
+            //Serial.println();
+          }
+
+          // read block 7 
+          sta = nfc.MifareReadBlock(blocknum+3, block);
+          if(sta){
+            //Serial.println("Read_block_3_successfully:");
+
+            //nfc.puthex(block, 16);
+            //Serial.println();
+          }
+          */
+        }  
+      }
+      for(i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+
+    if(Uart_Buffer[0] == 'O'&& Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'W')  //write card
+    {
+      Serial.println("System Write Cards!");
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(200);					//延时
+      digitalWrite(Buzzer,LOW);
+
+      u8 buf[32],sta;
+
+
+      /** Polling the mifar card, buf[0] is the length of the UID */
+      sta = nfc.InListPassiveTarget(buf);
+
+      /** check state and UID length */
+      if(sta && buf[0] == 4){
+        /** the card may be Mifare Classic card, try to read the block */
+        Serial.print("UUID length:");
+        Serial.print(buf[0], DEC);
+        Serial.println();
+        Serial.print("UUID:");
+        nfc.puthex(buf+1, buf[0]);
+        Serial.println();
+        /** factory default KeyA: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF */
+        u8 key[6] = {
+          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF                                                                                                                              };
+        u8 blocknum = 4;
+        /** Authentication blok 4 */
+        sta = nfc.MifareAuthentication(0, blocknum, buf+1, buf[0], key);
+        if(sta){
+          /** save read block data */
+          u8 block[16];
+          Serial.println("Authentication success.");
+
+          strcpy((char*)block,"A");
+          Serial.println("Write 'I Love You !'to block.... ");
+          sta = nfc.MifareWriteBlock(blocknum,block);
+          if(sta){
+            Serial.println("Write block successfully ^-^");
+            digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+            delay(50);					//延时
+            digitalWrite(Buzzer,LOW);
+            delay(50);
+            digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+            delay(50);					//延时
+            digitalWrite(Buzzer,LOW);
+          }
+        }
+      }
+      for(i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+    }
+    if(Uart_Buffer[0] == 'O'&& Uart_Buffer[1] == 'N' && Uart_Buffer[2] == 'D')  //Detect distence
+    {
+      Serial.println("System Report Distance!");
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(100);					//延时
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(200);					//延时
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(200);					//延时
+      digitalWrite(Buzzer,LOW);
+      delay(50);
+
+
+      digitalWrite(TrigPin, LOW); //低高低电平发一个短时间脉冲去TrigPin
+      delayMicroseconds(2);
+      digitalWrite(TrigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(TrigPin, LOW);
+      Value_cm = float( pulseIn(EchoPin, HIGH) * 17 )/1000; //将回波时间换算成cm
+      //读取一个引脚的脉冲（HIGH或LOW）。例如，如果value是HIGH，pulseIn()会等待引脚变为HIGH，开始计时，再等待引脚变为LOW并停止计时。
+      //返回脉冲的长度，单位微秒。如果在指定的时间内无脉冲函数返回。
+      //此函数的计时功能由经验决定，长时间的脉冲计时可能会出错。计时范围从10微秒至3分钟。（1秒=1000毫秒=1000000微秒）
+      //接收到的高电平的时间（us）* 340m/s / 2 = 接收到高电平的时间（us） * 17000 cm / 1000000 us = 接收到高电平的时间 * 17 / 1000  (cm)
+      Serial.println("Distence is :");
+      Serial.print(Value_cm);
+      Serial.println("cm");
+      delay(500);
+      digitalWrite(Buzzer,HIGH);	//蜂鸣器响
+      delay(500);					//延时
+      digitalWrite(Buzzer,LOW);
+
+      for(i = 0 ; i < 20 ; i++)
+      {
+        Uart_Buffer[i] = '0';
+      }
+
+    }
+  } 
+}
+
+
