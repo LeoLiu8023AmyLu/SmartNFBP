@@ -1,0 +1,67 @@
+Added Component: Designator=P1(HDR1X4)
+Added Component: Designator=P2(HDR1X4)
+Added Component: Designator=P3(HDR1X4)
+Added Component: Designator=P4(HDR1X2)
+Added Component: Designator=P5(HDR1X2)
+Added Component: Designator=P6(HDR1X2)
+Added Component: Designator=P7(HDR1X2)
+Added Component: Designator=U1(°¡¶Èno)
+Added Component: Designator=U2(À¶ÑÀÄ£¿é)
+Added Component: Designator=U3(·äÃùÆ÷Ä£¿é)
+Added Pin To Net: NetName=ECHO Pin=P3-3
+Added Pin To Net: NetName=ECHO Pin=U1-D3
+Added Net: Name=ECHO
+Added Pin To Net: NetName=FENG Pin=U1-D7
+Added Pin To Net: NetName=FENG Pin=U3-IO
+Added Net: Name=FENG
+Added Pin To Net: NetName=GND Pin=P1-4
+Added Pin To Net: NetName=GND Pin=P2-2
+Added Pin To Net: NetName=GND Pin=P3-4
+Added Pin To Net: NetName=GND Pin=P5-2
+Added Pin To Net: NetName=GND Pin=P6-2
+Added Pin To Net: NetName=GND Pin=P7-2
+Added Pin To Net: NetName=GND Pin=U1-GND
+Added Pin To Net: NetName=GND Pin=U1-GND
+Added Pin To Net: NetName=GND Pin=U2-GND
+Added Net: Name=GND
+Added Pin To Net: NetName=KEY01 Pin=P1-1
+Added Pin To Net: NetName=KEY01 Pin=U1-D6
+Added Net: Name=KEY01
+Added Pin To Net: NetName=KEY02 Pin=P1-2
+Added Pin To Net: NetName=KEY02 Pin=U1-D5
+Added Net: Name=KEY02
+Added Pin To Net: NetName=KEY03 Pin=P1-3
+Added Pin To Net: NetName=KEY03 Pin=U1-D4
+Added Net: Name=KEY03
+Added Pin To Net: NetName=LED01 Pin=P4-2
+Added Pin To Net: NetName=LED01 Pin=P7-1
+Added Pin To Net: NetName=LED01 Pin=U3-GND
+Added Net: Name=LED01
+Added Pin To Net: NetName=LED02 Pin=P5-1
+Added Pin To Net: NetName=LED02 Pin=U1-D13
+Added Net: Name=LED02
+Added Pin To Net: NetName=MRST Pin=U1-RXD
+Added Pin To Net: NetName=MRST Pin=U2-TXD
+Added Net: Name=MRST
+Added Pin To Net: NetName=MTSR Pin=U1-TX1
+Added Pin To Net: NetName=MTSR Pin=U2-RXD
+Added Net: Name=MTSR
+Added Pin To Net: NetName=SCL Pin=P2-4
+Added Pin To Net: NetName=SCL Pin=U1-A5
+Added Net: Name=SCL
+Added Pin To Net: NetName=SDA Pin=P2-3
+Added Pin To Net: NetName=SDA Pin=U1-A4
+Added Net: Name=SDA
+Added Pin To Net: NetName=TRIG Pin=P3-2
+Added Pin To Net: NetName=TRIG Pin=U1-D2
+Added Net: Name=TRIG
+Added Pin To Net: NetName=VCC Pin=P2-1
+Added Pin To Net: NetName=VCC Pin=P3-1
+Added Pin To Net: NetName=VCC Pin=P4-1
+Added Pin To Net: NetName=VCC Pin=P6-1
+Added Pin To Net: NetName=VCC Pin=U1-VIN
+Added Pin To Net: NetName=VCC Pin=U2-VCC
+Added Pin To Net: NetName=VCC Pin=U3-VCC
+Added Net: Name=VCC
+Added Class: Name=°¡¶Èno
+Added Room: Name=°¡¶Èno
